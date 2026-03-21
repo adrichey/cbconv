@@ -63,8 +63,11 @@ func main() {
 		return
 	}
 
-	// Output goes into a sibling directory named cbconv_output
-	outDir := filepath.Join(filepath.Dir(filepath.Clean(input)), "cbconv_output")
+	// Use -o as output directory if provided, otherwise default to sibling cbconv_output
+	outDir := output
+	if outDir == "" {
+		outDir = filepath.Join(filepath.Dir(filepath.Clean(input)), "cbconv_output")
+	}
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Println("Error creating output directory:", err)
 		return
