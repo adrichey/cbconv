@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/go-pdf/fpdf"
 )
 
 var help bool
@@ -108,21 +110,54 @@ func main() {
 	}
 	sort.Strings(imageFiles)
 
-	// Print image name, height, and width
+	// Determine output path
+	outPath := outputFile
+	if outPath == "" {
+		ext := filepath.Ext(inputFile)
+		outPath = strings.TrimSuffix(inputFile, ext) + ".pdf"
+	}
+
+	// Build PDF, one page per image sized to match the image dimensions
+	pdf := fpdf.NewCustom(&fpdf.InitType{
+		UnitStr: "pt",
+		Size:    fpdf.SizeType{Wd: 2480, Ht: 3508}, // Default to A4 page size, overridden per page
+	})
+	pdf.SetAutoPageBreak(false, 0)
+
 	for _, name := range imageFiles {
-		f, err := os.Open(filepath.Join(imageDir, name))
+		imgPath := filepath.Join(imageDir, name)
+
+		f, err := os.Open(imgPath)
 		if err != nil {
 			fmt.Println("Error opening image:", err)
 			continue
 		}
-		cfg, _, err := image.DecodeConfig(f)
+		cfg, imgType, err := image.DecodeConfig(f)
 		f.Close()
 		if err != nil {
 			fmt.Println("Error decoding image:", err)
 			continue
 		}
-		fmt.Printf("%s: width=%d height=%d\n", name, cfg.Width, cfg.Height)
+
+		w, h := float64(cfg.Width), float64(cfg.Height)
+		pdf.AddPageFormat("P", fpdf.SizeType{Wd: w, Ht: h})
+
+		// fpdf uses the extension to detect type; normalize to a supported name
+		switch strings.ToLower(imgType) {
+		case "jpeg":
+			imgType = "JPG"
+		default:
+			imgType = strings.ToUpper(imgType)
+		}
+
+		pdf.Image(imgPath, 0, 0, w, h, false, imgType, 0, "")
 	}
+
+	if err := pdf.OutputFileAndClose(outPath); err != nil {
+		fmt.Println("Error writing PDF:", err)
+		return
+	}
+	fmt.Println("PDF written to", outPath)
 }
 
 func displayHelp() {
