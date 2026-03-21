@@ -70,6 +70,13 @@ func main() {
 		return
 	}
 
+	fullOutputPath, err := filepath.Abs(outDir)
+	if err != nil {
+		fullOutputPath = outDir
+	}
+
+	fmt.Printf("Saving converted PDFs to: %s\n", fullOutputPath)
+
 	for _, f := range files {
 		base := strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
 		outPath := filepath.Join(outDir, base+".pdf")
