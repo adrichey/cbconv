@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/go-pdf/fpdf"
+	"github.com/nwaples/rardecode"
 )
 
 var validExts = map[string]bool{
@@ -47,38 +48,20 @@ func Convert(inputPath, outputPath string) error {
 		return errors.New("unsupported file extension: must be one of .cb7, .cba, .cbr, .cbt, .cbz")
 	}
 
-	r, err := zip.OpenReader(inputPath)
-	if err != nil {
-		return errors.New("file is not a valid zip archive: " + err.Error())
-	}
-	defer r.Close()
-
-	// Unzip into a temp directory
 	destDir, err := os.MkdirTemp("", "cbpdf-*")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(destDir)
 
-	for _, f := range r.File {
-		outPath := filepath.Join(destDir, f.Name)
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(outPath, f.Mode())
-			continue
-		}
-		os.MkdirAll(filepath.Dir(outPath), 0755)
-		rc, err := f.Open()
-		if err != nil {
+	if ext == ".cbr" {
+		if err := extractRAR(inputPath, destDir); err != nil {
 			return err
 		}
-		out, err := os.Create(outPath)
-		if err != nil {
-			rc.Close()
+	} else {
+		if err := extractZip(inputPath, destDir); err != nil {
 			return err
 		}
-		io.Copy(out, rc)
-		out.Close()
-		rc.Close()
 	}
 
 	// Recursively find the first directory containing image files
@@ -150,4 +133,65 @@ func Convert(inputPath, outputPath string) error {
 	}
 
 	return pdf.OutputFileAndClose(outputPath)
+}
+
+func extractZip(inputPath, destDir string) error {
+	r, err := zip.OpenReader(inputPath)
+	if err != nil {
+		return errors.New("file is not a valid zip archive: " + err.Error())
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		outPath := filepath.Join(destDir, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(outPath, f.Mode())
+			continue
+		}
+		os.MkdirAll(filepath.Dir(outPath), 0755)
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.Create(outPath)
+		if err != nil {
+			rc.Close()
+			return err
+		}
+		io.Copy(out, rc)
+		out.Close()
+		rc.Close()
+	}
+	return nil
+}
+
+func extractRAR(inputPath, destDir string) error {
+	r, err := rardecode.OpenReader(inputPath, "")
+	if err != nil {
+		return errors.New("file is not a valid RAR archive: " + err.Error())
+	}
+	defer r.Close()
+
+	for {
+		header, err := r.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		outPath := filepath.Join(destDir, header.Name)
+		if header.IsDir {
+			os.MkdirAll(outPath, 0755)
+			continue
+		}
+		os.MkdirAll(filepath.Dir(outPath), 0755)
+		out, err := os.Create(outPath)
+		if err != nil {
+			return err
+		}
+		io.Copy(out, r)
+		out.Close()
+	}
+	return nil
 }
