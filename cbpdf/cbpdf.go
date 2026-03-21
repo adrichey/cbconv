@@ -3,13 +3,16 @@ package cbpdf
 import (
 	"archive/zip"
 	"errors"
+	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -18,10 +21,7 @@ import (
 )
 
 var validExts = map[string]bool{
-	".cb7": true,
-	".cba": true,
 	".cbr": true,
-	".cbt": true,
 	".cbz": true,
 }
 
@@ -45,7 +45,8 @@ var imageExts = map[string]bool{
 func Convert(inputPath, outputPath string) error {
 	ext := strings.ToLower(filepath.Ext(inputPath))
 	if !validExts[ext] {
-		return errors.New("unsupported file extension: must be one of .cb7, .cba, .cbr, .cbt, .cbz")
+		keys := maps.Keys(validExts)
+		return fmt.Errorf("unsupported file extension: must be one of %s", strings.Join(slices.Collect(keys), ", "))
 	}
 
 	destDir, err := os.MkdirTemp("", "cbpdf-*")

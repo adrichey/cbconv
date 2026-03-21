@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/adrichey/cbconv/cbpdf"
@@ -12,15 +14,27 @@ import (
 )
 
 const OUTPUT_DIR = "cbconv_output"
-const inputHelpText = "Path to a comic book archive file or directory containing comic book archive files. Accepts: .cb7, .cbr"
 
-var outputHelpText = fmt.Sprintf("Specify an output file or directory for the converted PDF(s). Defaults to a sibling directory beside input path named %s", OUTPUT_DIR)
-
+// Flags
 var help bool
 var input string
 var output string
 
+var validExts map[string]bool
+var inputHelpText string
+var outputHelpText string
+
 func init() {
+	validExts = map[string]bool{
+		".cbr": true,
+		".cbz": true,
+	}
+
+	keys := maps.Keys(validExts)
+
+	inputHelpText = "Path to a comic book archive file or directory containing comic book archive files. Accepts: " + strings.Join(slices.Collect(keys), ", ")
+	outputHelpText = fmt.Sprintf("Specify an output file or directory for the converted PDF(s). Defaults to a sibling directory beside input path named %s", OUTPUT_DIR)
+
 	flag.BoolVar(&help, "help", false, "Help")
 	flag.StringVar(&input, "i", "", inputHelpText)
 	flag.StringVar(&output, "o", "", outputHelpText)
@@ -53,10 +67,6 @@ func main() {
 	}
 
 	// input is a directory — collect all comic archive files
-	validExts := map[string]bool{
-		".cb7": true, ".cba": true, ".cbr": true, ".cbt": true, ".cbz": true,
-	}
-
 	var files []string
 	entries, err := os.ReadDir(input)
 	if err != nil {
