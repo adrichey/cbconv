@@ -1,8 +1,18 @@
 package main
 
 import (
+	"archive/zip"
 	"flag"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 )
 
 var help bool
@@ -23,11 +33,96 @@ func main() {
 		return
 	}
 
-	// TODO:
-	// Unzip CBZ file using the archive/zip go package
-	// Recursively traverse the unzipped directory and find the first instance that contains image files (can be jpg, png, gif, etc.)
-	// Once we find that directory, create a slice to hold the image file names in alphabetical order
-	// Traverse that slice and print the image name, the image height, and the image width to the console using the fmt package
+	// Unzip CBZ file
+	destDir, err := os.MkdirTemp("", "cbconv-*")
+	if err != nil {
+		fmt.Println("Error creating temp dir:", err)
+		return
+	}
+	defer os.RemoveAll(destDir)
+
+	r, err := zip.OpenReader(inputFile)
+	if err != nil {
+		fmt.Println("Error opening CBZ file:", err)
+		return
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		outPath := filepath.Join(destDir, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(outPath, f.Mode())
+			continue
+		}
+		os.MkdirAll(filepath.Dir(outPath), 0755)
+		rc, err := f.Open()
+		if err != nil {
+			fmt.Println("Error opening zip entry:", err)
+			return
+		}
+		out, err := os.Create(outPath)
+		if err != nil {
+			rc.Close()
+			fmt.Println("Error creating file:", err)
+			return
+		}
+		io.Copy(out, rc)
+		out.Close()
+		rc.Close()
+	}
+
+	// Recursively find first directory containing image files
+	imageExts := map[string]bool{
+		".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
+		".bmp": true, ".tiff": true, ".webp": true,
+	}
+
+	imageDir := ""
+	filepath.Walk(destDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || imageDir != "" {
+			return err
+		}
+		if !info.IsDir() && imageExts[strings.ToLower(filepath.Ext(path))] {
+			imageDir = filepath.Dir(path)
+		}
+		return nil
+	})
+
+	if imageDir == "" {
+		fmt.Println("No image files found in archive.")
+		return
+	}
+
+	// Collect image files in alphabetical order
+	entries, err := os.ReadDir(imageDir)
+	if err != nil {
+		fmt.Println("Error reading image directory:", err)
+		return
+	}
+
+	var imageFiles []string
+	for _, e := range entries {
+		if !e.IsDir() && imageExts[strings.ToLower(filepath.Ext(e.Name()))] {
+			imageFiles = append(imageFiles, e.Name())
+		}
+	}
+	sort.Strings(imageFiles)
+
+	// Print image name, height, and width
+	for _, name := range imageFiles {
+		f, err := os.Open(filepath.Join(imageDir, name))
+		if err != nil {
+			fmt.Println("Error opening image:", err)
+			continue
+		}
+		cfg, _, err := image.DecodeConfig(f)
+		f.Close()
+		if err != nil {
+			fmt.Println("Error decoding image:", err)
+			continue
+		}
+		fmt.Printf("%s: width=%d height=%d\n", name, cfg.Width, cfg.Height)
+	}
 }
 
 func displayHelp() {
