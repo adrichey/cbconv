@@ -25,8 +25,13 @@ var validExts = map[string]bool{
 }
 
 var imageExts = map[string]bool{
-	".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
-	".bmp": true, ".tiff": true, ".webp": true,
+	".jpg":  true,
+	".jpeg": true,
+	".png":  true,
+	".gif":  true,
+	".bmp":  true,
+	".tiff": true,
+	".webp": true,
 }
 
 // Convert reads a comic book archive at inputPath and writes a PDF to
