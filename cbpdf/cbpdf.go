@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bodgit/sevenzip"
@@ -111,6 +112,18 @@ func Convert(inputPath, outputPath string) error {
 	// Resolve output path
 	if outputPath == "" {
 		outputPath = strings.TrimSuffix(inputPath, filepath.Ext(inputPath)) + ".pdf"
+
+		// Append a suffix if the file exists
+		i := 1
+		for {
+			outputPath = strings.TrimSuffix(inputPath, filepath.Ext(inputPath)) + "_" + strconv.Itoa(i) + ".pdf"
+			if _, err := os.Stat(outputPath); err == nil {
+				i++
+				continue
+			} else if errors.Is(err, os.ErrNotExist) {
+				break
+			}
+		}
 	}
 
 	// Build PDF, one page per image sized to match the image dimensions
