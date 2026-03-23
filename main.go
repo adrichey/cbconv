@@ -58,14 +58,16 @@ func main() {
 		return
 	}
 
-	info, err := os.Stat(input)
+	inputClean := filepath.Clean(input)
+
+	info, err := os.Stat(inputClean)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
 
 	if !info.IsDir() {
-		if err := cbpdf.Convert(input, output); err != nil {
+		if err := cbpdf.Convert(inputClean, output); err != nil {
 			fmt.Println("Error:", err)
 		}
 		return
@@ -74,24 +76,38 @@ func main() {
 	// Use -o as output directory if provided, otherwise default to sibling directory with name OUTPUT_DIR
 	outDir := output
 	if outDir == "" {
-		outDir = filepath.Join(filepath.Dir(filepath.Clean(input)), OUTPUT_DIR)
+		outDir = filepath.Join(filepath.Dir(filepath.Clean(inputClean)), OUTPUT_DIR)
 	}
 
 	// input is a directory — recursively collect all comic archive files
 	var files []string
-	inputClean := filepath.Clean(input)
-	filepath.Walk(inputClean, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return err
+
+	entries, err := os.ReadDir(inputClean)
+	if err != nil {
+		fmt.Println("Error reading directory:", err)
+		return
+	}
+
+	if !recursive {
+		for _, e := range entries {
+			if !e.IsDir() && validExts[strings.ToLower(filepath.Ext(e.Name()))] {
+				files = append(files, filepath.Join(inputClean, e.Name()))
+			}
 		}
-		if validExts[strings.ToLower(filepath.Ext(path))] {
-			files = append(files, path)
-		}
-		return nil
-	})
+	} else {
+		filepath.Walk(inputClean, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return err
+			}
+			if validExts[strings.ToLower(filepath.Ext(path))] {
+				files = append(files, path)
+			}
+			return nil
+		})
+	}
 
 	if len(files) == 0 {
-		fmt.Println("No comic archive files found in directory.")
+		fmt.Println("No comic archive files found.")
 		return
 	}
 
