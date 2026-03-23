@@ -17,11 +17,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bodgit/sevenzip"
 	"github.com/go-pdf/fpdf"
 	"github.com/nwaples/rardecode"
 )
 
 var validExts = map[string]bool{
+	".cb7": true,
 	".cbr": true,
 	".cbt": true,
 	".cbz": true,
@@ -58,6 +60,10 @@ func Convert(inputPath, outputPath string) error {
 	defer os.RemoveAll(destDir)
 
 	switch ext {
+	case ".cb7":
+		if err := extract7z(inputPath, destDir); err != nil {
+			return err
+		}
 	case ".cbr":
 		if err := extractRAR(inputPath, destDir); err != nil {
 			return err
@@ -147,6 +153,36 @@ func extractZip(inputPath, destDir string) error {
 	r, err := zip.OpenReader(inputPath)
 	if err != nil {
 		return errors.New("file is not a valid zip archive: " + err.Error())
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		outPath := filepath.Join(destDir, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(outPath, f.Mode())
+			continue
+		}
+		os.MkdirAll(filepath.Dir(outPath), 0755)
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		out, err := os.Create(outPath)
+		if err != nil {
+			rc.Close()
+			return err
+		}
+		io.Copy(out, rc)
+		out.Close()
+		rc.Close()
+	}
+	return nil
+}
+
+func extract7z(inputPath, destDir string) error {
+	r, err := sevenzip.OpenReader(inputPath)
+	if err != nil {
+		return errors.New("file is not a valid 7z archive: " + err.Error())
 	}
 	defer r.Close()
 

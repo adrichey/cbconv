@@ -26,6 +26,7 @@ var outputHelpText string
 
 func init() {
 	validExts = map[string]bool{
+		".cb7": true,
 		".cbr": true,
 		".cbt": true,
 		".cbz": true,
