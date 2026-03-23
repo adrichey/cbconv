@@ -2,7 +2,7 @@
 CLI tool to convert comic book archive files into PDFs. It was created so that I can convert my digital comic book collection to a format readable on any device that can read PDFs. You can read more about the comic book archive file format on its [Wikipedia entry](https://en.wikipedia.org/wiki/Comic_book_archive). This application can convert .cb7, .cbr, .cbt, and .cbz files to PDF. It will not convert .cba files as ACE archives are a dead format.
 
 ## How to build this application
-- Clone this repo and run `go build ./...`
+- Clone this repo and run `go build`
 
 ## How to use this application
 
