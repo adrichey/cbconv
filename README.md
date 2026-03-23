@@ -9,4 +9,5 @@ CLI tool to convert comic book archive files into PDFs. It was created so that I
 Flags
 - `-i`: Path to a comic book archive file or directory containing comic book archive files. Accepts: .cbz, .cbr
 - `-o`: Specify an output file or directory for the converted PDF(s). Defaults to a sibling directory beside input path named `cbconv_output`
+- `-r`: Recursively convert subdirectories while in directory mode
 - `-help`: Display help with examples on how to use the application
