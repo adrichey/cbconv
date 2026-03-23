@@ -14,11 +14,13 @@ import (
 )
 
 const OUTPUT_DIR = "cbconv_output"
+const RECURSIVE_FLAG_HELP = "Recursively convert subdirectories while in directory mode"
 
 // Flags
 var help bool
 var input string
 var output string
+var recursive bool
 
 var validExts map[string]bool
 var inputHelpText string
@@ -40,6 +42,7 @@ func init() {
 	flag.BoolVar(&help, "help", false, "Help")
 	flag.StringVar(&input, "i", "", inputHelpText)
 	flag.StringVar(&output, "o", "", outputHelpText)
+	flag.BoolVar(&recursive, "r", false, RECURSIVE_FLAG_HELP)
 
 	flag.Parse()
 }
@@ -126,6 +129,7 @@ func displayHelp() {
 	fmt.Println("How to use this script:")
 	fmt.Printf("-i: %s\n", inputHelpText)
 	fmt.Printf("-o: %s\n", outputHelpText)
+	fmt.Printf("-r: %s\n", RECURSIVE_FLAG_HELP)
 
 	ex, err := os.Executable()
 	if err != nil {
@@ -145,8 +149,9 @@ func displayHelp() {
 	fmt.Println("Example - Directory:")
 	formattedString = fmt.Sprintf("%s -i .|one|two|comics", ex)
 	fmt.Println(strings.ReplaceAll(formattedString, "|", project.PATH_SEPARATOR))
-	formattedString = fmt.Sprintf("This will save the converted files to .|one|two|%s", OUTPUT_DIR)
+	formattedString = fmt.Sprintf("This will save the converted files in .|one|two|comics to .|one|two|%s", OUTPUT_DIR)
 	fmt.Println(strings.ReplaceAll(formattedString, "|", project.PATH_SEPARATOR))
+	fmt.Println("If you include the -r flag with this command, it will recursively convert all subdirectory comic archives; otherwise it just converts top-level directory passed into the application")
 	fmt.Println()
 
 	fmt.Println("Example - Single File with Specified Output File:")
