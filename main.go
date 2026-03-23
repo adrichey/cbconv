@@ -68,29 +68,30 @@ func main() {
 		return
 	}
 
-	// input is a directory — collect all comic archive files
+	// Use -o as output directory if provided, otherwise default to sibling directory with name OUTPUT_DIR
+	outDir := output
+	if outDir == "" {
+		outDir = filepath.Join(filepath.Dir(filepath.Clean(input)), OUTPUT_DIR)
+	}
+
+	// input is a directory — recursively collect all comic archive files
 	var files []string
-	entries, err := os.ReadDir(input)
-	if err != nil {
-		fmt.Println("Error reading directory:", err)
-		return
-	}
-	for _, e := range entries {
-		if !e.IsDir() && validExts[strings.ToLower(filepath.Ext(e.Name()))] {
-			files = append(files, filepath.Join(input, e.Name()))
+	inputClean := filepath.Clean(input)
+	filepath.Walk(inputClean, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
 		}
-	}
+		if validExts[strings.ToLower(filepath.Ext(path))] {
+			files = append(files, path)
+		}
+		return nil
+	})
 
 	if len(files) == 0 {
 		fmt.Println("No comic archive files found in directory.")
 		return
 	}
 
-	// Use -o as output directory if provided, otherwise default to sibling directory with name OUTPUT_DIR
-	outDir := output
-	if outDir == "" {
-		outDir = filepath.Join(filepath.Dir(filepath.Clean(input)), OUTPUT_DIR)
-	}
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Println("Error creating output directory:", err)
 		return
@@ -104,11 +105,19 @@ func main() {
 	fmt.Printf("Saving converted PDFs to: %s\n", fullOutputPath)
 
 	for _, f := range files {
-		base := strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
-		outPath := filepath.Join(outDir, base+".pdf")
-		fmt.Printf("Converting %s...\n", filepath.Base(f))
+		// Preserve subdirectory structure relative to input root
+		rel, err := filepath.Rel(inputClean, f)
+		if err != nil {
+			rel = filepath.Base(f)
+		}
+		outPath := filepath.Join(outDir, strings.TrimSuffix(rel, filepath.Ext(rel))+".pdf")
+		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+			fmt.Printf("Error creating output directory for %s: %v\n", filepath.Base(f), err)
+			continue
+		}
+		fmt.Printf("Converting %s...\n", rel)
 		if err := cbpdf.Convert(f, outPath); err != nil {
-			fmt.Printf("Error converting %s: %v\n", filepath.Base(f), err)
+			fmt.Printf("Error converting %s: %v\n", rel, err)
 		}
 	}
 }
