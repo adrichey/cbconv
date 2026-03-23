@@ -1,6 +1,7 @@
 package cbpdf
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 
 var validExts = map[string]bool{
 	".cbr": true,
+	".cbt": true,
 	".cbz": true,
 }
 
@@ -55,11 +57,16 @@ func Convert(inputPath, outputPath string) error {
 	}
 	defer os.RemoveAll(destDir)
 
-	if ext == ".cbr" {
+	switch ext {
+	case ".cbr":
 		if err := extractRAR(inputPath, destDir); err != nil {
 			return err
 		}
-	} else {
+	case ".cbt":
+		if err := extractTAR(inputPath, destDir); err != nil {
+			return err
+		}
+	default:
 		if err := extractZip(inputPath, destDir); err != nil {
 			return err
 		}
@@ -162,6 +169,38 @@ func extractZip(inputPath, destDir string) error {
 		io.Copy(out, rc)
 		out.Close()
 		rc.Close()
+	}
+	return nil
+}
+
+func extractTAR(inputPath, destDir string) error {
+	f, err := os.Open(inputPath)
+	if err != nil {
+		return errors.New("file is not a valid TAR archive: " + err.Error())
+	}
+	defer f.Close()
+
+	r := tar.NewReader(f)
+	for {
+		header, err := r.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		outPath := filepath.Join(destDir, header.Name)
+		if header.Typeflag == tar.TypeDir {
+			os.MkdirAll(outPath, 0755)
+			continue
+		}
+		os.MkdirAll(filepath.Dir(outPath), 0755)
+		out, err := os.Create(outPath)
+		if err != nil {
+			return err
+		}
+		io.Copy(out, r)
+		out.Close()
 	}
 	return nil
 }
